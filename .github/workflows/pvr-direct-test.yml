@@ -1,5 +1,5 @@
 
-name: Test Cloudflare connection
+name: Test Cloudflare PVR proxy
 
 on:
   workflow_dispatch:
@@ -8,25 +8,41 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Test Worker GET
+      - name: Test PVR through Cloudflare
+        env:
+          PVR_PROXY_BASE: ${{ secrets.PVR_PROXY_BASE }}
+          PVR_PROXY_TOKEN: ${{ secrets.PVR_PROXY_TOKEN }}
         run: |
           python - <<'PY'
+          import json
           import urllib.request
+          import urllib.error
+          import os
 
-          url = "https://pvr-seat-proxy.perpetualflaws.workers.dev/"
+          url = os.environ["PVR_PROXY_BASE"].rstrip("/") + "/proxy/content/city"
+          body = json.dumps({
+              "lat": "13.0827",
+              "lng": "80.2707"
+          }).encode()
+
           req = urllib.request.Request(
               url,
-              method="GET",
+              data=body,
+              method="POST",
               headers={
-                  "User-Agent": "pvr-seat-alerts/1.0 (+https://github.com/perpetualflaws-netizen/movie-seat-alerts)"
+                  "Content-Type": "application/json",
+                  "User-Agent": "pvr-seat-alerts/1.0",
+                  "x-proxy-token": os.environ["PVR_PROXY_TOKEN"],
+                  "x-city": "Chennai"
               }
-              )
+          )
 
           try:
-              with urllib.request.urlopen(req, timeout=20) as r:
-                  print("STATUS:", r.status)
-                  print("BODY:", r.read().decode())
-          except Exception as e:
-              print("FAILED:", repr(e))
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  print("HTTP STATUS:", r.status)
+                  print("RESPONSE:", r.read().decode()[:1500])
+          except urllib.error.HTTPError as e:
+              print("HTTP ERROR:", e.code)
+              print("RESPONSE:", e.read().decode()[:1500])
               raise
           PY
