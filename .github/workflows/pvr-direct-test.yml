@@ -1,5 +1,5 @@
 
-name: Test direct PVR access
+name: Test Cloudflare PVR proxy
 
 on:
   workflow_dispatch:
@@ -14,34 +14,42 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Test PVR without proxy
+      - name: Test Cloudflare proxy
         env:
-          PVR_PROXY_BASE: ""
-          PVR_PROXY_TOKEN: ""
+          PVR_PROXY_BASE: ${{ secrets.PVR_PROXY_BASE }}
+          PVR_PROXY_TOKEN: ${{ secrets.PVR_PROXY_TOKEN }}
         run: |
           python - <<'PY'
-          import core
-          import traceback
+          import json
+          import urllib.request
+          import urllib.error
+          import os
 
-          date = core.today_ist().isoformat()
-          body = {
-              "city": "Chennai",
-              "cid": "320",
-              "lat": "12.99193469",
-              "lng": "80.21682184",
-              "dated": date,
-              "qr": "NO",
-              "cineType": "",
-              "cineTypeQR": ""
-          }
+          url = os.environ["PVR_PROXY_BASE"].rstrip("/") + "/proxy/content/city"
+          body = json.dumps({
+              "lat": "13.0827",
+              "lng": "80.2707"
+          }).encode()
+
+          req = urllib.request.Request(
+              url,
+              data=body,
+              headers={
+                  "Content-Type": "application/json",
+                  "x-proxy-token": os.environ["PVR_PROXY_TOKEN"],
+                  "x-city": "Chennai"
+              }
+          )
 
           try:
-              result = core._post("content/csessions", body, "Chennai")
-              print("DIRECT ACCESS SUCCESS")
-              print("API status:", result.get("status"))
-              print("Response received.")
-          except Exception as e:
-              print("DIRECT ACCESS FAILED")
-              print(type(e).__name__, str(e))
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  print("HTTP STATUS:", response.status)
+                  data = json.loads(response.read())
+                  print("PVR RESPONSE STATUS:", data.get("status"))
+                  print("PVR RESPONSE MESSAGE:", data.get("msg"))
+                  print("SUCCESS: Cloudflare reached PVR.")
+          except urllib.error.HTTPError as e:
+              print("HTTP ERROR:", e.code)
+              print("RESPONSE:", e.read().decode()[:1000])
               raise
           PY
