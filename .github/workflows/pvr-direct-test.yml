@@ -14,7 +14,13 @@ jobs:
           import urllib.request
 
           url = "https://pvr-seat-proxy.perpetualflaws.workers.dev/"
-          req = urllib.request.Request(url, method="GET")
+          req = urllib.request.Request(
+              url,
+              method="GET",
+              headers={
+                  "User-Agent": "pvr-seat-alerts/1.0 (+https://github.com/perpetualflaws-netizen/movie-seat-alerts)"
+              }
+              )
 
           try:
               with urllib.request.urlopen(req, timeout=20) as r:
