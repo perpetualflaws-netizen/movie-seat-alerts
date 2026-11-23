@@ -49,7 +49,10 @@ jobs:
                   print("PVR RESPONSE MESSAGE:", data.get("msg"))
                   print("SUCCESS: Cloudflare reached PVR.")
           except urllib.error.HTTPError as e:
-              print("HTTP ERROR:", e.code)
-              print("RESPONSE:", e.read().decode()[:1000])
-              raise
+            print("HTTP ERROR:", e.code)
+            print("RESPONSE HEADERS:")
+            print(e.headers)
+            print("RESPONSE BODY:")
+            print(e.read().decode()[:1000])
+            raise
           PY
